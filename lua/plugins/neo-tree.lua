@@ -18,6 +18,12 @@ return {
       },
     })
 
-    vim.keymap.set("n", "<leader>e", ":Neotree toggle<CR>", { desc = "Toggle file explorer" })
+    vim.keymap.set("n", "<leader>e", function()
+      if vim.bo.filetype == "neo-tree" then
+        vim.cmd("Neotree close")
+      else
+        vim.cmd("Neotree focus")
+      end
+    end, { desc = "Dosya ağacına odaklan / aç / kapat" })
   end,
 }
