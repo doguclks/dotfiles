@@ -1,0 +1,518 @@
+local wezterm = require 'wezterm'
+
+-- İşletim Sistemi Tespiti (Windows / macOS / Linux)
+local is_windows = wezterm.target_triple:find('windows') ~= nil
+local is_mac = wezterm.target_triple:find('darwin') ~= nil
+
+local config = {}
+
+if wezterm.config_builder then
+  config = wezterm.config_builder()
+end
+
+-- Şeffaflık ve Bulanıklık (Blur) Efekti
+config.window_background_opacity = 0.50
+if is_windows then
+  config.win32_system_backdrop = 'Acrylic'
+elseif is_mac then
+  config.macos_window_background_blur = 20
+end
+
+-- Gözü yormayan yumuşak arka plan gradyanı (Eye-friendly Gradient)
+config.window_background_gradient = {
+  -- Saf siyah yerine kontrastı artıran, koyu arduvaz ve zarif gece tonları
+  colors = {
+    '#161a23e6', -- Sol üst: yumuşak koyu arduvaz
+    '#1f2432e6', -- Orta: dengeli gece mavisi tonu
+    '#272e40e6', -- Sağ alt: zarif füme / lacivert
+  },
+  -- Yumuşak çapraz geçiş (-45 derece)
+  orientation = { Linear = { angle = -45.0 } },
+  -- İnsan gözünün renk algısına en uygun renk uzayı (Oklab)
+  blend = 'Oklab',
+  -- Yumuşak eğri enterpolasyonu
+  interpolation = 'CatmullRom',
+  -- Çizgilenmeleri (banding) önlemek için hafif dağıtma
+  noise = 64,
+}
+
+-- Başlangıç Programı ve Çalışma Dizini (Platforma Göre)
+if is_windows then
+  config.default_prog = { 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' }
+  config.default_cwd = 'C:\\Projects'
+elseif is_mac then
+  -- macOS varsayılan zsh kabuğu ve ~/Projects dizini
+  config.default_cwd = wezterm.home_dir .. '/Projects'
+end
+
+-- Yazı Tipi (Font) Ayarları: JetBrains Mono
+config.font = wezterm.font_with_fallback({
+  { family = 'JetBrains Mono' },
+  { family = 'Symbols Nerd Font Mono' },
+  { family = is_mac and 'Apple Color Emoji' or 'Segoe UI Emoji' },
+})
+config.font_size = is_mac and 13.0 or 10.0 -- Mac Retina ekranlarda 13pt idealdir
+config.color_scheme = 'Bright Lights'
+
+-- Antigravity model etiketi (Gemini 3.8 Flash) ve soluk metinlerin okunabilmesi için renk ayarı
+config.colors = {
+  ansi = {
+    '#363c4a', -- Siyah metin/alanlar arka planda kaybolmasın diye belirginleştirildi
+    '#ff355b',
+    '#b7e876',
+    '#ffc251',
+    '#76d4ff',
+    '#ba76e7',
+    '#6cbfb5',
+    '#c2c8d7',
+  },
+  brights = {
+    '#78869e', -- Bright Black / Gray: Antigravity model adı ve ikincil metinlerin net görünmesini sağlar
+    '#ff355b',
+    '#b7e876',
+    '#ffc251',
+    '#76d5ff',
+    '#ba76e7',
+    '#6cbfb5',
+    '#c2c8d7',
+  },
+  -- Tab çubuğu renkleri (Gradyan ve tema ile uyumlu)
+  tab_bar = {
+    background = '#12151c',
+    active_tab = {
+      bg_color = '#272e40',
+      fg_color = '#ffffff',
+    },
+    inactive_tab = {
+      bg_color = '#161a23',
+      fg_color = '#78869e',
+    },
+    inactive_tab_hover = {
+      bg_color = '#1f2432',
+      fg_color = '#c2c8d7',
+    },
+    new_tab = {
+      bg_color = '#161a23',
+      fg_color = '#78869e',
+    },
+    new_tab_hover = {
+      bg_color = '#272e40',
+      fg_color = '#ffffff',
+    },
+  },
+}
+
+-- Tab Çubuğu Görünümü (Hangi tabların açık olduğunu gösterir)
+config.enable_tab_bar = true
+config.use_fancy_tab_bar = false
+config.tab_bar_at_bottom = true -- Tab çubuğu alt kısımda gösterilir (üst için false yapabilirsiniz)
+config.hide_tab_bar_if_only_one_tab = false -- Tek tab varken de çubuk görünür kalır
+config.window_padding = {
+  left = 0,
+  right = 0,
+  top = 0,
+  bottom = 0,
+}
+
+-- Akıllı Sekme (Tab) Başlıkları: Çalışan program, klasör adı, sekme numarası ve zoom durumu
+wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_width)
+  local is_active = tab.is_active
+  local bg = is_active and '#272e40' or (hover and '#1f2432' or '#161a23')
+  local fg = is_active and '#ffffff' or (hover and '#c2c8d7' or '#78869e')
+  local index_fg = is_active and '#76d4ff' or '#566075'
+
+  local index = tab.tab_index + 1
+  local pane = tab.active_pane
+
+  local title = tab.tab_title
+  if not title or #title == 0 then
+    -- Çalışan program adını temizle
+    local proc = pane.foreground_process_name or ''
+    local proc_clean = proc:match("([^/\\]+)$") or ''
+    proc_clean = proc_clean:gsub("%.exe$", ""):lower()
+
+    local is_shell = proc_clean == 'powershell' or proc_clean == 'pwsh' or proc_clean == 'zsh' or proc_clean == 'bash' or proc_clean == 'fish'
+
+    local icon = '⚡'
+    if proc_clean == 'node' or proc_clean == 'npm' or proc_clean == 'yarn' or proc_clean == 'pnpm' then
+      icon = '🟢'
+    elseif proc_clean == 'python' or proc_clean == 'py' then
+      icon = '🐍'
+    elseif proc_clean == 'git' then
+      icon = '🐙'
+    elseif proc_clean == 'cargo' or proc_clean == 'rustc' then
+      icon = '🦀'
+    elseif proc_clean == 'nvim' or proc_clean == 'vim' then
+      icon = '📝'
+    elseif is_shell then
+      icon = '⚡'
+    elseif proc_clean ~= '' then
+      icon = '📟'
+    end
+
+    -- Çalışılan klasör adını al
+    local dir = ''
+    if pane.current_working_dir then
+      local path = pane.current_working_dir.file_path or pane.current_working_dir.path or ''
+      local base = path:match("([^/\\]+)[/\\]?$")
+      if base and #base > 0 then
+        dir = base
+      end
+    end
+
+    if dir ~= '' and proc_clean ~= '' and not is_shell then
+      title = icon .. ' ' .. proc_clean .. ' · ' .. dir
+    elseif dir ~= '' then
+      title = '📁 ' .. dir
+    elseif proc_clean ~= '' then
+      title = icon .. ' ' .. proc_clean
+    else
+      title = pane.title or 'terminal'
+    end
+  end
+
+  -- Pane büyütülmüşse (Zoom) sekmede büyüteç simgesi göster
+  if pane.is_zoomed then
+    title = title .. ' 🔍'
+  end
+
+  return {
+    { Background = { Color = bg } },
+    { Foreground = { Color = index_fg } },
+    { Text = ' ' .. index .. ' ' },
+    { Foreground = { Color = fg } },
+    { Text = title .. ' ' },
+  }
+end)
+
+-- Sekme Yeniden İsimlendirme Aksiyonu (PromptInputLine)
+local rename_tab_action = wezterm.action.PromptInputLine {
+  description = 'Sekme için yeni isim girin (Varsayılana dönmek için boş bırakıp Enter\'a basın):',
+  action = wezterm.action_callback(function(window, pane, line)
+    if line then
+      window:active_tab():set_title(line)
+    end
+  end),
+}
+
+-- Komut Paletine (Ctrl + Shift + P) sekme isimlendirmeyi ekle
+wezterm.on('augment-command-palette', function(window, pane)
+  return {
+    {
+      brief = 'Rename tab: Sekmeyi yeniden isimlendir',
+      icon = 'md_rename_box',
+      action = rename_tab_action,
+    },
+  }
+end)
+
+-- Kısayollar listesi (Cheat Sheet)
+local cheatsheet_choices = {
+  -- Tab Yönetimi
+  { id = 'spawn_tab',    label = '📑 [Ctrl + t]           Yeni Tab Aç' },
+  { id = 'rename_tab',   label = '✏️  [F2 / Ctrl + Shift + e] Sekmeyi Yeniden İsimlendir' },
+  { id = 'close_tab',    label = '🗑️  [Ctrl + Shift + w]   Mevcut Tabı Kapat' },
+  { id = 'next_tab',     label = '➡️  [Ctrl + Tab]         Sonraki Tab' },
+  { id = 'prev_tab',     label = '⬅️  [Ctrl + Shift + Tab] Önceki Tab' },
+  { id = 'tab_jump',     label = '🚀 [Alt + 1..9]         Sekmelere Doğrudan Zıpla (1-9)' },
+
+  -- Pane Yönetimi & Zoom
+  { id = 'zoom_pane',    label = '🔍 [Ctrl + f / Ctrl + Shift + z] Mevcut Pane\'e Odaklan / Büyüt (Zoom Toggle)' },
+  { id = 'search_mode',  label = '🔎 [Ctrl + Shift + f]   Terminal Geçmişinde Canlı Arama (Search)' },
+  { id = 'pane_left',    label = '🧭 [Ctrl + h]           Pane Gezinme (Sol)' },
+  { id = 'pane_down',    label = '🧭 [Ctrl + j]           Pane Gezinme (Aşağı)' },
+  { id = 'pane_up',      label = '🧭 [Ctrl + k]           Pane Gezinme (Yukarı)' },
+  { id = 'pane_right',   label = '🧭 [Ctrl + l]           Pane Gezinme (Sağ)' },
+  { id = 'resize_left',  label = '📏 [Ctrl + Shift + h]   Pane Boyutlandırma (Sola 5)' },
+  { id = 'resize_down',  label = '📏 [Ctrl + Shift + j]   Pane Boyutlandırma (Aşağı 5)' },
+  { id = 'resize_up',    label = '📏 [Ctrl + Shift + k]   Pane Boyutlandırma (Yukarı 5)' },
+  { id = 'resize_right', label = '📏 [Ctrl + Shift + l]   Pane Boyutlandırma (Sağa 5)' },
+  { id = 'split_left',   label = '🪟 [Ctrl + Alt + h]     Pane Bölme (Sol %50)' },
+  { id = 'split_down',   label = '🪟 [Ctrl + Alt + j]     Pane Bölme (Aşağı %50)' },
+  { id = 'split_up',     label = '🪟 [Ctrl + Alt + k]     Pane Bölme (Yukarı %50)' },
+  { id = 'split_right',  label = '🪟 [Ctrl + Alt + l]     Pane Bölme (Sağ %50)' },
+  { id = 'close_pane',   label = '❌ [Ctrl + Alt + x]     Geçerli Pane\'i Kapat' },
+  { id = 'fullscreen',   label = '🖥️  [F11]                 Tam Ekran (Aç / Kapat)' },
+  { id = 'palette',      label = '⚙️  [Ctrl + Shift + p]   WezTerm Komut Paleti (Tüm Komutlar)' },
+  { id = 'reload',       label = '🔄 [Ctrl + Shift + r]   Ayarları Yeniden Yükle (Reload Config)' },
+}
+
+local show_cheatsheet = wezterm.action.InputSelector {
+  title = '📋 WezTerm Kısayol Rehberi (Arama yapabilir, Enter ile çalıştırabilir, Esc ile kapatabilirsiniz)',
+  choices = cheatsheet_choices,
+  fuzzy = true,
+  action = wezterm.action_callback(function(window, pane, id, label)
+    if not id then return end
+
+    if id == 'spawn_tab' then
+      window:perform_action(wezterm.action.SpawnTab 'CurrentPaneDomain', pane)
+    elseif id == 'rename_tab' then
+      window:perform_action(rename_tab_action, pane)
+    elseif id == 'close_tab' then
+      window:perform_action(wezterm.action.CloseCurrentTab { confirm = false }, pane)
+    elseif id == 'next_tab' then
+      window:perform_action(wezterm.action.ActivateTabRelative(1), pane)
+    elseif id == 'prev_tab' then
+      window:perform_action(wezterm.action.ActivateTabRelative(-1), pane)
+    elseif id == 'zoom_pane' then
+      window:perform_action(wezterm.action.TogglePaneZoomState, pane)
+    elseif id == 'search_mode' then
+      window:perform_action(wezterm.action.Search 'CurrentSelectionOrEmptyString', pane)
+    elseif id == 'pane_left' then
+      window:perform_action(wezterm.action.ActivatePaneDirection 'Left', pane)
+    elseif id == 'pane_down' then
+      window:perform_action(wezterm.action.ActivatePaneDirection 'Down', pane)
+    elseif id == 'pane_up' then
+      window:perform_action(wezterm.action.ActivatePaneDirection 'Up', pane)
+    elseif id == 'pane_right' then
+      window:perform_action(wezterm.action.ActivatePaneDirection 'Right', pane)
+    elseif id == 'resize_left' then
+      window:perform_action(wezterm.action.AdjustPaneSize { 'Left', 5 }, pane)
+    elseif id == 'resize_down' then
+      window:perform_action(wezterm.action.AdjustPaneSize { 'Down', 5 }, pane)
+    elseif id == 'resize_up' then
+      window:perform_action(wezterm.action.AdjustPaneSize { 'Up', 5 }, pane)
+    elseif id == 'resize_right' then
+      window:perform_action(wezterm.action.AdjustPaneSize { 'Right', 5 }, pane)
+    elseif id == 'split_left' then
+      window:perform_action(wezterm.action.SplitPane { direction = 'Left', size = { Percent = 50 } }, pane)
+    elseif id == 'split_down' then
+      window:perform_action(wezterm.action.SplitPane { direction = 'Down', size = { Percent = 50 } }, pane)
+    elseif id == 'split_up' then
+      window:perform_action(wezterm.action.SplitPane { direction = 'Up', size = { Percent = 50 } }, pane)
+    elseif id == 'split_right' then
+      window:perform_action(wezterm.action.SplitPane { direction = 'Right', size = { Percent = 50 } }, pane)
+    elseif id == 'close_pane' then
+      window:perform_action(wezterm.action.CloseCurrentPane { confirm = false }, pane)
+    elseif id == 'fullscreen' then
+      window:perform_action(wezterm.action.ToggleFullScreen, pane)
+    elseif id == 'palette' then
+      window:perform_action(wezterm.action.ActivateCommandPalette, pane)
+    elseif id == 'reload' then
+      window:perform_action(wezterm.action.ReloadConfiguration, pane)
+    end
+  end),
+}
+
+-- Fare ile kısayol rehberini açma (Ctrl + Sağ Tık)
+config.mouse_bindings = {
+  {
+    event = { Down = { streak = 1, button = 'Right' } },
+    mods = 'CTRL',
+    action = show_cheatsheet,
+  },
+}
+
+config.keys = {
+
+  -- Kısayolları Görme Rehberi (Cheat Sheet) & Komut Paleti
+  {
+    key = "F1",
+    mods = "NONE",
+    action = show_cheatsheet,
+  },
+  {
+    key = "?",
+    mods = "CTRL|SHIFT",
+    action = show_cheatsheet,
+  },
+  {
+    key = "p",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.ActivateCommandPalette,
+  },
+  {
+    key = "r",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.ReloadConfiguration,
+  },
+
+  -- Tab Yönetimi (Yeni Tab Açma, Kapatma ve Gezinme)
+  {
+    key = "t",
+    mods = "CTRL",
+    action = wezterm.action.SpawnTab "CurrentPaneDomain",
+  },
+  {
+    key = "t",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.SpawnTab "CurrentPaneDomain",
+  },
+  -- Sekme İsimlendirme (Rename Tab)
+  {
+    key = "F2",
+    mods = "NONE",
+    action = rename_tab_action,
+  },
+  {
+    key = "e",
+    mods = "CTRL|SHIFT",
+    action = rename_tab_action,
+  },
+  -- Tab Kapatma (Vim'deki Ctrl+W kelime silme ve pencere gezinmesi ile çakışmaması için sadece Ctrl+Shift+W kullanılır)
+  {
+    key = "w",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.CloseCurrentTab { confirm = false },
+  },
+  {
+    key = "Tab",
+    mods = "CTRL",
+    action = wezterm.action.ActivateTabRelative(1),
+  },
+  {
+    key = "Tab",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.ActivateTabRelative(-1),
+  },
+
+  -- Sekmelere Doğrudan Rakamla Atlama (Alt + 1..9)
+  { key = "1", mods = "ALT", action = wezterm.action.ActivateTab(0) },
+  { key = "2", mods = "ALT", action = wezterm.action.ActivateTab(1) },
+  { key = "3", mods = "ALT", action = wezterm.action.ActivateTab(2) },
+  { key = "4", mods = "ALT", action = wezterm.action.ActivateTab(3) },
+  { key = "5", mods = "ALT", action = wezterm.action.ActivateTab(4) },
+  { key = "6", mods = "ALT", action = wezterm.action.ActivateTab(5) },
+  { key = "7", mods = "ALT", action = wezterm.action.ActivateTab(6) },
+  { key = "8", mods = "ALT", action = wezterm.action.ActivateTab(7) },
+  { key = "9", mods = "ALT", action = wezterm.action.ActivateTab(8) },
+
+  -- Pane Zoom & Terminal Arama (Search Mode)
+  -- İstenen özellik: Aktif ekranı tek tab gibi büyütür, diğerlerini arkada tutar; tekrar basınca eski haline döner
+  {
+    key = "f",
+    mods = "CTRL",
+    action = wezterm.action.TogglePaneZoomState,
+  },
+  {
+    key = "z",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.TogglePaneZoomState,
+  },
+  {
+    key = "z",
+    mods = "ALT",
+    action = wezterm.action.TogglePaneZoomState,
+  },
+  {
+    key = "f",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.Search "CurrentSelectionOrEmptyString",
+  },
+
+  -- Pane navigation (Vim style)
+  {
+    key = "h",
+    mods = "CTRL",
+    action = wezterm.action.ActivatePaneDirection "Left",
+  },
+  {
+    key = "j",
+    mods = "CTRL",
+    action = wezterm.action.ActivatePaneDirection "Down",
+  },
+  {
+    key = "k",
+    mods = "CTRL",
+    action = wezterm.action.ActivatePaneDirection "Up",
+  },
+  {
+    key = "l",
+    mods = "CTRL",
+    action = wezterm.action.ActivatePaneDirection "Right",
+  },
+
+  -- Pane resize (Shift ile büyüt/küçült)
+  {
+    key = "h",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.AdjustPaneSize { "Left", 5 },
+  },
+  {
+    key = "j",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.AdjustPaneSize { "Down", 5 },
+  },
+  {
+    key = "k",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.AdjustPaneSize { "Up", 5 },
+  },
+  {
+    key = "l",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.AdjustPaneSize { "Right", 5 },
+  },
+
+  -- Pane split
+  {
+    key = "h",
+    mods = "CTRL|ALT",
+    action = wezterm.action.SplitPane {
+      direction = "Left",
+      size = {Percent = 50},
+    },
+  },
+  {
+    key = "j",
+    mods = "CTRL|ALT",
+    action = wezterm.action.SplitPane {
+      direction = "Down",
+      size = {Percent = 50},
+    },
+  },
+  {
+    key = "k",
+    mods = "CTRL|ALT",
+    action = wezterm.action.SplitPane {
+      direction = "Up",
+      size = {Percent = 50},
+    },
+  },
+  {
+    key = "l",
+    mods = "CTRL|ALT",
+    action = wezterm.action.SplitPane {
+      direction = "Right",
+      size = {Percent = 50},
+    },
+  },
+
+  -- Pane kapatma
+  {
+    key = "x",
+    mods = "CTRL|ALT",
+    action = wezterm.action.CloseCurrentPane {confirm = false},
+  },
+
+  -- Tam ekran (Pencereyi tam ekran yapma / kapatma)
+  {
+    key = "F11",
+    mods = "NONE",
+    action = wezterm.action.ToggleFullScreen,
+  },
+}
+
+-- macOS Sistemine Özel Command (CMD) Kısayolları
+if is_mac then
+  -- Sekme yönetimi
+  table.insert(config.keys, { key = 't', mods = 'CMD', action = wezterm.action.SpawnTab 'CurrentPaneDomain' })
+  table.insert(config.keys, { key = 'w', mods = 'CMD', action = wezterm.action.CloseCurrentTab { confirm = false } })
+  table.insert(config.keys, { key = 'e', mods = 'CMD|SHIFT', action = rename_tab_action })
+  table.insert(config.keys, { key = '[', mods = 'CMD|SHIFT', action = wezterm.action.ActivateTabRelative(-1) })
+  table.insert(config.keys, { key = ']', mods = 'CMD|SHIFT', action = wezterm.action.ActivateTabRelative(1) })
+
+  -- Sekmelere doğrudan zıplama (Cmd + 1..9)
+  for i = 1, 9 do
+    table.insert(config.keys, { key = tostring(i), mods = 'CMD', action = wezterm.action.ActivateTab(i - 1) })
+  end
+
+  -- Arama, Palet, Yenileme ve Tam Ekran
+  table.insert(config.keys, { key = 'f', mods = 'CMD', action = wezterm.action.Search 'CurrentSelectionOrEmptyString' })
+  table.insert(config.keys, { key = 'p', mods = 'CMD|SHIFT', action = wezterm.action.ActivateCommandPalette })
+  table.insert(config.keys, { key = 'r', mods = 'CMD|SHIFT', action = wezterm.action.ReloadConfiguration })
+  table.insert(config.keys, { key = 'f', mods = 'CMD|CTRL', action = wezterm.action.ToggleFullScreen })
+  table.insert(config.keys, { key = 'z', mods = 'CMD|SHIFT', action = wezterm.action.TogglePaneZoomState })
+end
+
+return config

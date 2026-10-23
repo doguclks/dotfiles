@@ -62,7 +62,12 @@ nvim
 
 ```bash
 brew install --cask wezterm
+
+# Çapraz platform otomatik algılamalı konfigürasyon:
 cp ~/.config/nvim/wezterm/wezterm.lua ~/.wezterm.lua
+
+# VEYA sadece macOS'a özel bağımsız konfigürasyon:
+# cp ~/.config/nvim/wezterm/wezterm.mac.lua ~/.wezterm.lua
 ```
 
 ---
