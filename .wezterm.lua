@@ -185,6 +185,67 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_wid
   }
 end)
 
+-- Sağ Durum Çubuğu (Sağ üstte Workspace, Pil ve Saat/Tarih gösterir)
+wezterm.on('update-right-status', function(window, pane)
+  local cells = {}
+
+  -- Çalışma Alanı (Workspace) - 'default' dışında bir isimdeyse göster
+  local ws = window:active_workspace()
+  if ws and #ws > 0 and ws ~= 'default' then
+    table.insert(cells, { Background = { Color = '#1f2432' } })
+    table.insert(cells, { Foreground = { Color = '#ffc251' } })
+    table.insert(cells, { Text = ' 🗂️  ' .. ws .. ' ' })
+  end
+
+  -- Pil Durumu (Dizüstü bilgisayarlarda şarj yüzdesi ve simgesi)
+  local battery_info = wezterm.battery_info()
+  if battery_info and #battery_info > 0 then
+    local b = battery_info[1]
+    local charge = math.floor(b.state_of_charge * 100)
+    local icon = '🔋'
+    if b.state == 'Charging' then
+      icon = '⚡'
+    end
+    local color = '#b7e876'
+    if charge <= 20 and b.state ~= 'Charging' then
+      color = '#ff355b'
+    elseif charge <= 40 and b.state ~= 'Charging' then
+      color = '#ffc251'
+    end
+    table.insert(cells, { Background = { Color = '#161a23' } })
+    table.insert(cells, { Foreground = { Color = color } })
+    table.insert(cells, { Text = ' ' .. icon .. ' ' .. charge .. '% ' })
+  end
+
+  -- Tarih ve Saat
+  local time_str = wezterm.strftime('%d.%m.%Y  %H:%M')
+  table.insert(cells, { Background = { Color = '#272e40' } })
+  table.insert(cells, { Foreground = { Color = '#76d4ff' } })
+  table.insert(cells, { Text = ' 🕒 ' .. time_str .. ' ' })
+
+  window:set_right_status(wezterm.format(cells))
+end)
+
+-- Terminal Geçmişini (Scrollback Buffer) Neovim'de Yeni Sekmede Açma Aksiyonu
+local open_scrollback_in_nvim = wezterm.action_callback(function(window, pane)
+  local text = pane:get_lines_as_text(pane:get_dimensions().scrollback_rows)
+  local temp_dir = os.getenv('TEMP') or os.getenv('TMP') or os.getenv('TMPDIR') or '/tmp'
+  local name = string.format('%s/wezterm-scrollback-%d.txt', temp_dir:gsub('\\', '/'), os.time())
+  local f = io.open(name, 'w+')
+  if f then
+    f:write(text)
+    f:flush()
+    f:close()
+  end
+
+  window:perform_action(
+    wezterm.action.SpawnCommandInNewTab {
+      args = { 'nvim', '+', name },
+    },
+    pane
+  )
+end)
+
 -- Sekme Yeniden İsimlendirme Aksiyonu (PromptInputLine)
 local rename_tab_action = wezterm.action.PromptInputLine {
   description = 'Sekme için yeni isim girin (Varsayılana dönmek için boş bırakıp Enter\'a basın):',
@@ -195,13 +256,23 @@ local rename_tab_action = wezterm.action.PromptInputLine {
   end),
 }
 
--- Komut Paletine (Ctrl + Shift + P) sekme isimlendirmeyi ekle
+-- Komut Paletine (Ctrl + Shift + P) özel aksiyonları ekle
 wezterm.on('augment-command-palette', function(window, pane)
   return {
     {
       brief = 'Rename tab: Sekmeyi yeniden isimlendir',
       icon = 'md_rename_box',
       action = rename_tab_action,
+    },
+    {
+      brief = 'QuickSelect: Metin / Link / Hash hızlı kopyala',
+      icon = 'md_select_drag',
+      action = wezterm.action.QuickSelect,
+    },
+    {
+      brief = 'Neovim scrollback: Terminal geçmişini Neovim\'de aç',
+      icon = 'md_file_document_edit',
+      action = open_scrollback_in_nvim,
     },
   }
 end)
@@ -218,9 +289,11 @@ local cheatsheet_choices = {
   { id = 'move_tab_right', label = '▶️  [Ctrl + Shift + ► / PageDown] Tabı Sağa Taşı (Yerini Değiştir)' },
   { id = 'tab_jump',       label = '🚀 [Alt + 1..9]         Sekmelere Doğrudan Zıpla (1-9)' },
 
-  -- Pane Yönetimi & Zoom
-  { id = 'zoom_pane',    label = '🔍 [Ctrl + f / Ctrl + Shift + z] Mevcut Pane\'e Odaklan / Büyüt (Zoom Toggle)' },
-  { id = 'search_mode',  label = '🔎 [Ctrl + Shift + f]   Terminal Geçmişinde Canlı Arama (Search)' },
+  -- Hızlı Seçim, Scrollback & Arama
+  { id = 'quick_select',    label = '⚡ [Ctrl + Shift + Space] QuickSelect (Metin / Link / Hash Hızlı Kopyala)' },
+  { id = 'nvim_scrollback', label = '📝 [F3 / Ctrl + Shift + s] Terminal Geçmişini Neovim\'de Aç' },
+  { id = 'zoom_pane',       label = '🔍 [Ctrl + f / Ctrl + Shift + z] Mevcut Pane\'e Odaklan / Büyüt (Zoom Toggle)' },
+  { id = 'search_mode',     label = '🔎 [Ctrl + Shift + f]   Terminal Geçmişinde Canlı Arama (Search)' },
   { id = 'pane_left',    label = '🧭 [Ctrl + h]           Pane Gezinme (Sol)' },
   { id = 'pane_down',    label = '🧭 [Ctrl + j]           Pane Gezinme (Aşağı)' },
   { id = 'pane_up',      label = '🧭 [Ctrl + k]           Pane Gezinme (Yukarı)' },
@@ -260,6 +333,10 @@ local show_cheatsheet = wezterm.action.InputSelector {
       window:perform_action(wezterm.action.MoveTabRelative(-1), pane)
     elseif id == 'move_tab_right' then
       window:perform_action(wezterm.action.MoveTabRelative(1), pane)
+    elseif id == 'quick_select' then
+      window:perform_action(wezterm.action.QuickSelect, pane)
+    elseif id == 'nvim_scrollback' then
+      window:perform_action(open_scrollback_in_nvim, pane)
     elseif id == 'zoom_pane' then
       window:perform_action(wezterm.action.TogglePaneZoomState, pane)
     elseif id == 'search_mode' then
@@ -392,6 +469,25 @@ config.keys = {
     key = "PageDown",
     mods = "CTRL|SHIFT",
     action = wezterm.action.MoveTabRelative(1),
+  },
+
+  -- QuickSelect Modu (URL, Hash, Dosya Yolu Hızlı Kopyalama)
+  {
+    key = "Space",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.QuickSelect,
+  },
+
+  -- Terminal Geçmişini (Scrollback) Neovim'de Açma
+  {
+    key = "F3",
+    mods = "NONE",
+    action = open_scrollback_in_nvim,
+  },
+  {
+    key = "s",
+    mods = "CTRL|SHIFT",
+    action = open_scrollback_in_nvim,
   },
 
   -- Sekmelere Doğrudan Rakamla Atlama (Alt + 1..9)
@@ -531,6 +627,9 @@ if is_mac then
   table.insert(config.keys, { key = ']', mods = 'CMD|SHIFT', action = wezterm.action.ActivateTabRelative(1) })
   table.insert(config.keys, { key = 'LeftArrow', mods = 'CMD|SHIFT', action = wezterm.action.MoveTabRelative(-1) })
   table.insert(config.keys, { key = 'RightArrow', mods = 'CMD|SHIFT', action = wezterm.action.MoveTabRelative(1) })
+  table.insert(config.keys, { key = 'Space', mods = 'CMD|SHIFT', action = wezterm.action.QuickSelect })
+  table.insert(config.keys, { key = 's', mods = 'CMD|SHIFT', action = open_scrollback_in_nvim })
+  table.insert(config.keys, { key = 'F3', mods = 'NONE', action = open_scrollback_in_nvim })
 
   -- Sekmelere doğrudan zıplama (Cmd + 1..9)
   for i = 1, 9 do
