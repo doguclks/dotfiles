@@ -308,6 +308,7 @@ local cheatsheet_choices = {
   { id = 'split_right',  label = '🪟 [Ctrl + Alt + l]     Pane Bölme (Sağ %50)' },
   { id = 'close_pane',   label = '❌ [Ctrl + Alt + x]     Geçerli Pane\'i Kapat' },
   { id = 'fullscreen',   label = '🖥️  [F11]                 Tam Ekran (Aç / Kapat)' },
+  { id = 'font_zoom',    label = '🔍 [Ctrl + Fare Tekerleği] Font Yakınlaştır / Uzaklaştır (Ctrl + 0 Sıfırla)' },
   { id = 'palette',      label = '⚙️  [Ctrl + Shift + p]   WezTerm Komut Paleti (Tüm Komutlar)' },
   { id = 'reload',       label = '🔄 [Ctrl + Shift + r]   Ayarları Yeniden Yükle (Reload Config)' },
 }
@@ -369,6 +370,8 @@ local show_cheatsheet = wezterm.action.InputSelector {
       window:perform_action(wezterm.action.CloseCurrentPane { confirm = false }, pane)
     elseif id == 'fullscreen' then
       window:perform_action(wezterm.action.ToggleFullScreen, pane)
+    elseif id == 'font_zoom' then
+      window:perform_action(wezterm.action.ResetFontSize, pane)
     elseif id == 'palette' then
       window:perform_action(wezterm.action.ActivateCommandPalette, pane)
     elseif id == 'reload' then
@@ -377,12 +380,24 @@ local show_cheatsheet = wezterm.action.InputSelector {
   end),
 }
 
--- Fare ile kısayol rehberini açma (Ctrl + Sağ Tık)
+-- Fare ile kısayol rehberini açma (Ctrl + Sağ Tık) ve Font Büyütme/Küçültme (Ctrl + Fare Tekerleği)
 config.mouse_bindings = {
   {
     event = { Down = { streak = 1, button = 'Right' } },
     mods = 'CTRL',
     action = show_cheatsheet,
+  },
+  -- Ctrl + Fare Tekerleği Yukarı: Font Yakınlaştır (Zoom In)
+  {
+    event = { Down = { streak = 1, button = { WheelUp = 1 } } },
+    mods = 'CTRL',
+    action = wezterm.action.IncreaseFontSize,
+  },
+  -- Ctrl + Fare Tekerleği Aşağı: Font Uzaklaştır (Zoom Out)
+  {
+    event = { Down = { streak = 1, button = { WheelDown = 1 } } },
+    mods = 'CTRL',
+    action = wezterm.action.DecreaseFontSize,
   },
 }
 
@@ -642,6 +657,18 @@ if is_mac then
   table.insert(config.keys, { key = 'r', mods = 'CMD|SHIFT', action = wezterm.action.ReloadConfiguration })
   table.insert(config.keys, { key = 'f', mods = 'CMD|CTRL', action = wezterm.action.ToggleFullScreen })
   table.insert(config.keys, { key = 'z', mods = 'CMD|SHIFT', action = wezterm.action.TogglePaneZoomState })
+
+  -- macOS Cmd + Fare Tekerleği ile Font Yakınlaştırma
+  table.insert(config.mouse_bindings, {
+    event = { Down = { streak = 1, button = { WheelUp = 1 } } },
+    mods = 'CMD',
+    action = wezterm.action.IncreaseFontSize,
+  })
+  table.insert(config.mouse_bindings, {
+    event = { Down = { streak = 1, button = { WheelDown = 1 } } },
+    mods = 'CMD',
+    action = wezterm.action.DecreaseFontSize,
+  })
 end
 
 return config

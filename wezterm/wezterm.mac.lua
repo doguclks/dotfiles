@@ -296,6 +296,7 @@ local cheatsheet_choices = {
   { id = 'split_right',  label = '🪟 [Ctrl + Alt + l]           Pane Bölme (Sağ %50)' },
   { id = 'close_pane',   label = '❌ [Ctrl + Alt + x]           Geçerli Pane\'i Kapat' },
   { id = 'fullscreen',   label = '🖥️  [Cmd + Ctrl + f / F11]    Tam Ekran (Aç / Kapat)' },
+  { id = 'font_zoom',    label = '🔍 [Cmd / Ctrl + Tekerlek]   Font Yakınlaştır / Uzaklaştır (Cmd + 0 Sıfırla)' },
   { id = 'palette',      label = '⚙️  [Cmd + Shift + p]         WezTerm Komut Paleti' },
   { id = 'reload',       label = '🔄 [Cmd + Shift + r]         Ayarları Yeniden Yükle' },
 }
@@ -356,6 +357,8 @@ local show_cheatsheet = wezterm.action.InputSelector {
       window:perform_action(wezterm.action.CloseCurrentPane { confirm = false }, pane)
     elseif id == 'fullscreen' then
       window:perform_action(wezterm.action.ToggleFullScreen, pane)
+    elseif id == 'font_zoom' then
+      window:perform_action(wezterm.action.ResetFontSize, pane)
     elseif id == 'palette' then
       window:perform_action(wezterm.action.ActivateCommandPalette, pane)
     elseif id == 'reload' then
@@ -364,12 +367,34 @@ local show_cheatsheet = wezterm.action.InputSelector {
   end),
 }
 
--- Fare ile kısayol rehberini açma (Ctrl + Sağ Tık)
+-- Fare ile kısayol rehberini açma (Ctrl + Sağ Tık) ve Font Büyütme/Küçültme (Cmd/Ctrl + Fare Tekerleği)
 config.mouse_bindings = {
   {
     event = { Down = { streak = 1, button = 'Right' } },
     mods = 'CTRL',
     action = show_cheatsheet,
+  },
+  -- Cmd + Fare Tekerleği ile Font Yakınlaştır / Uzaklaştır
+  {
+    event = { Down = { streak = 1, button = { WheelUp = 1 } } },
+    mods = 'CMD',
+    action = wezterm.action.IncreaseFontSize,
+  },
+  {
+    event = { Down = { streak = 1, button = { WheelDown = 1 } } },
+    mods = 'CMD',
+    action = wezterm.action.DecreaseFontSize,
+  },
+  -- Ctrl + Fare Tekerleği ile Font Yakınlaştır / Uzaklaştır
+  {
+    event = { Down = { streak = 1, button = { WheelUp = 1 } } },
+    mods = 'CTRL',
+    action = wezterm.action.IncreaseFontSize,
+  },
+  {
+    event = { Down = { streak = 1, button = { WheelDown = 1 } } },
+    mods = 'CTRL',
+    action = wezterm.action.DecreaseFontSize,
   },
 }
 
