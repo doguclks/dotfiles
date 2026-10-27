@@ -89,7 +89,7 @@ config.colors = {
 -- Sekme Çubuğu Görünümü
 config.enable_tab_bar = true
 config.use_fancy_tab_bar = false
-config.tab_bar_at_bottom = true
+config.tab_bar_at_bottom = false
 config.hide_tab_bar_if_only_one_tab = false
 config.window_padding = {
   left = 0,
@@ -200,6 +200,8 @@ local cheatsheet_choices = {
   { id = 'close_tab',    label = '🗑️  [Cmd + w / Ctrl + Shift + w] Mevcut Tabı Kapat' },
   { id = 'next_tab',     label = '➡️  [Cmd + Shift + ] / Ctrl + Tab] Sonraki Tab' },
   { id = 'prev_tab',     label = '⬅️  [Cmd + Shift + [ / Ctrl + Shift + Tab] Önceki Tab' },
+  { id = 'move_tab_left',  label = '◀️  [Cmd + Shift + ◄ / PageUp] Tabı Sola Taşı (Yerini Değiştir)' },
+  { id = 'move_tab_right', label = '▶️  [Cmd + Shift + ► / PageDown] Tabı Sağa Taşı (Yerini Değiştir)' },
   { id = 'tab_jump',     label = '🚀 [Cmd + 1..9 / Alt + 1..9]   Sekmelere Doğrudan Zıpla (1-9)' },
   { id = 'zoom_pane',    label = '🔍 [Ctrl + f / Cmd + Shift + z] Pane Zoom (Büyüt / Odaklan)' },
   { id = 'search_mode',  label = '🔎 [Cmd + f / Ctrl + Shift + f] Terminal Geçmişinde Canlı Arama' },
@@ -237,6 +239,10 @@ local show_cheatsheet = wezterm.action.InputSelector {
       window:perform_action(wezterm.action.ActivateTabRelative(1), pane)
     elseif id == 'prev_tab' then
       window:perform_action(wezterm.action.ActivateTabRelative(-1), pane)
+    elseif id == 'move_tab_left' then
+      window:perform_action(wezterm.action.MoveTabRelative(-1), pane)
+    elseif id == 'move_tab_right' then
+      window:perform_action(wezterm.action.MoveTabRelative(1), pane)
     elseif id == 'zoom_pane' then
       window:perform_action(wezterm.action.TogglePaneZoomState, pane)
     elseif id == 'search_mode' then
@@ -310,7 +316,15 @@ config.keys = {
   { key = "]", mods = "CMD|SHIFT", action = wezterm.action.ActivateTabRelative(1) },
   { key = "[", mods = "CMD|SHIFT", action = wezterm.action.ActivateTabRelative(-1) },
   { key = "Tab", mods = "CTRL", action = wezterm.action.ActivateTabRelative(1) },
-  { key = "Tab", mods = "CTRL|SHIFT", action = wezterm.action.ActivateTabRelative(-1) },
+  { key = "Tab", mods = "CTRL|SHIFT", action = wezterm.action.ActivateTabRelative(-1), },
+
+  -- Tab Sıralamasını Değiştirme (Tabları Sola / Sağa Taşıma)
+  { key = "LeftArrow", mods = "CMD|SHIFT", action = wezterm.action.MoveTabRelative(-1) },
+  { key = "RightArrow", mods = "CMD|SHIFT", action = wezterm.action.MoveTabRelative(1) },
+  { key = "LeftArrow", mods = "CTRL|SHIFT", action = wezterm.action.MoveTabRelative(-1) },
+  { key = "RightArrow", mods = "CTRL|SHIFT", action = wezterm.action.MoveTabRelative(1) },
+  { key = "PageUp", mods = "CTRL|SHIFT", action = wezterm.action.MoveTabRelative(-1) },
+  { key = "PageDown", mods = "CTRL|SHIFT", action = wezterm.action.MoveTabRelative(1) },
 
   -- Sekmelere Doğrudan Rakamla Atlama (Cmd + 1..9 & Alt + 1..9)
   { key = "1", mods = "CMD", action = wezterm.action.ActivateTab(0) },

@@ -105,7 +105,7 @@ config.colors = {
 -- Tab Çubuğu Görünümü (Hangi tabların açık olduğunu gösterir)
 config.enable_tab_bar = true
 config.use_fancy_tab_bar = false
-config.tab_bar_at_bottom = true -- Tab çubuğu alt kısımda gösterilir (üst için false yapabilirsiniz)
+config.tab_bar_at_bottom = false -- Tab çubuğu üst kısımda gösterilir (alt için true yapabilirsiniz)
 config.hide_tab_bar_if_only_one_tab = false -- Tek tab varken de çubuk görünür kalır
 config.window_padding = {
   left = 0,
@@ -209,12 +209,14 @@ end)
 -- Kısayollar listesi (Cheat Sheet)
 local cheatsheet_choices = {
   -- Tab Yönetimi
-  { id = 'spawn_tab',    label = '📑 [Ctrl + t]           Yeni Tab Aç' },
-  { id = 'rename_tab',   label = '✏️  [F2 / Ctrl + Shift + e] Sekmeyi Yeniden İsimlendir' },
-  { id = 'close_tab',    label = '🗑️  [Ctrl + Shift + w]   Mevcut Tabı Kapat' },
-  { id = 'next_tab',     label = '➡️  [Ctrl + Tab]         Sonraki Tab' },
-  { id = 'prev_tab',     label = '⬅️  [Ctrl + Shift + Tab] Önceki Tab' },
-  { id = 'tab_jump',     label = '🚀 [Alt + 1..9]         Sekmelere Doğrudan Zıpla (1-9)' },
+  { id = 'spawn_tab',      label = '📑 [Ctrl + t]           Yeni Tab Aç' },
+  { id = 'rename_tab',     label = '✏️  [F2 / Ctrl + Shift + e] Sekmeyi Yeniden İsimlendir' },
+  { id = 'close_tab',      label = '🗑️  [Ctrl + Shift + w]   Mevcut Tabı Kapat' },
+  { id = 'next_tab',       label = '➡️  [Ctrl + Tab]         Sonraki Tab' },
+  { id = 'prev_tab',       label = '⬅️  [Ctrl + Shift + Tab] Önceki Tab' },
+  { id = 'move_tab_left',  label = '◀️  [Ctrl + Shift + ◄ / PageUp] Tabı Sola Taşı (Yerini Değiştir)' },
+  { id = 'move_tab_right', label = '▶️  [Ctrl + Shift + ► / PageDown] Tabı Sağa Taşı (Yerini Değiştir)' },
+  { id = 'tab_jump',       label = '🚀 [Alt + 1..9]         Sekmelere Doğrudan Zıpla (1-9)' },
 
   -- Pane Yönetimi & Zoom
   { id = 'zoom_pane',    label = '🔍 [Ctrl + f / Ctrl + Shift + z] Mevcut Pane\'e Odaklan / Büyüt (Zoom Toggle)' },
@@ -254,6 +256,10 @@ local show_cheatsheet = wezterm.action.InputSelector {
       window:perform_action(wezterm.action.ActivateTabRelative(1), pane)
     elseif id == 'prev_tab' then
       window:perform_action(wezterm.action.ActivateTabRelative(-1), pane)
+    elseif id == 'move_tab_left' then
+      window:perform_action(wezterm.action.MoveTabRelative(-1), pane)
+    elseif id == 'move_tab_right' then
+      window:perform_action(wezterm.action.MoveTabRelative(1), pane)
     elseif id == 'zoom_pane' then
       window:perform_action(wezterm.action.TogglePaneZoomState, pane)
     elseif id == 'search_mode' then
@@ -364,6 +370,28 @@ config.keys = {
     key = "Tab",
     mods = "CTRL|SHIFT",
     action = wezterm.action.ActivateTabRelative(-1),
+  },
+
+  -- Tab Sıralamasını Değiştirme (Tabları Sola / Sağa Taşıma)
+  {
+    key = "LeftArrow",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.MoveTabRelative(-1),
+  },
+  {
+    key = "RightArrow",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.MoveTabRelative(1),
+  },
+  {
+    key = "PageUp",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.MoveTabRelative(-1),
+  },
+  {
+    key = "PageDown",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.MoveTabRelative(1),
   },
 
   -- Sekmelere Doğrudan Rakamla Atlama (Alt + 1..9)
@@ -501,6 +529,8 @@ if is_mac then
   table.insert(config.keys, { key = 'e', mods = 'CMD|SHIFT', action = rename_tab_action })
   table.insert(config.keys, { key = '[', mods = 'CMD|SHIFT', action = wezterm.action.ActivateTabRelative(-1) })
   table.insert(config.keys, { key = ']', mods = 'CMD|SHIFT', action = wezterm.action.ActivateTabRelative(1) })
+  table.insert(config.keys, { key = 'LeftArrow', mods = 'CMD|SHIFT', action = wezterm.action.MoveTabRelative(-1) })
+  table.insert(config.keys, { key = 'RightArrow', mods = 'CMD|SHIFT', action = wezterm.action.MoveTabRelative(1) })
 
   -- Sekmelere doğrudan zıplama (Cmd + 1..9)
   for i = 1, 9 do
