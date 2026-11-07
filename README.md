@@ -2,11 +2,25 @@
 
 Kişisel **Neovim** ve **WezTerm** geliştirme ortamı konfigürasyonları. Neovim tarafı Windows üzerinde kullanılıp test ediliyor.
 
+## 📂 Yapı
+
+```text
+dotfiles/
+├── nvim/               → Neovim konfigürasyonu: klasörü olduğu gibi kopyalayın
+│   ├── init.lua           Windows: %LOCALAPPDATA%\nvim  (C:\Users\<kullanıcı>\AppData\Local\nvim)
+│   ├── lua/               macOS / Linux: ~/.config/nvim
+│   ├── after/  ftplugin/  ftdetect/  syntax/
+│   └── nvim-pack-lock.json
+├── wezterm/            → WezTerm konfigürasyonları (çapraz platform + macOS)
+├── .wezterm.lua
+└── .wezterm.mac.lua
+```
+
 ---
 
 ## ⚡ Özellikler
 
-- **Paket Yöneticisi:** Neovim 0.12'nin yerleşik `vim.pack`'i. Eklentiler `lua/plugins.lua`'da tanımlı, sürümler `nvim-pack-lock.json`'da sabit.
+- **Paket Yöneticisi:** Neovim 0.12'nin yerleşik `vim.pack`'i. Eklentiler `nvim/lua/plugins.lua`'da tanımlı, sürümler `nvim/nvim-pack-lock.json`'da sabit.
 - **Otomatik Tamamlama:** [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (LSP, imza yardımı, buffer, path, cmdline, calc, vsnip kaynakları)
 - **LSP:** Native `vim.lsp.config` / `vim.lsp.enable` + [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig): Lua (`lua_ls`), TypeScript/JavaScript (`ts_ls`), C# ([roslyn.nvim](https://github.com/seblyng/roslyn.nvim)). İlerleme bildirimi için [fidget.nvim](https://github.com/j-hui/fidget.nvim).
 - **Sözdizimi Vurgulama:** [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) (`main` branch): `c_sharp`, `css`, `html`, `javascript`, `typescript`, `tsx`
@@ -40,13 +54,27 @@ scoop bucket add nerd-fonts
 scoop install JetBrainsMono-NF
 ```
 
-> **Not:** `tree-sitter` CLI'ını npm ile değil scoop ile kurun. Neovim (libuv) npm'in `.cmd` shim'lerini çalıştıramadığı için parser derlemesi `ENOENT` ile başarısız olur. Parser'lar `gcc` ile derlenir: `after/plugin/treesitter.lua` Windows'ta `CC=gcc` ayarlar (MSVC gerekmez).
+> **Not:** `tree-sitter` CLI'ını npm ile değil scoop ile kurun. Neovim (libuv) npm'in `.cmd` shim'lerini çalıştıramadığı için parser derlemesi `ENOENT` ile başarısız olur. Parser'lar `gcc` ile derlenir: `nvim/after/plugin/treesitter.lua` Windows'ta `CC=gcc` ayarlar (MSVC gerekmez).
 
-### 2. Neovim Konfigürasyonunu Klonlayın
+### 2. `nvim` Klasörünü Yerine Koyun
+
+En kolayı: repoyu indirip (veya klonlayıp) içindeki `nvim` klasörünü `%LOCALAPPDATA%` (`C:\Users\<kullanıcı>\AppData\Local`) içine atın.
+
+PowerShell ile:
 
 ```powershell
-git clone https://github.com/doguclks/dotfiles.git $env:LOCALAPPDATA\nvim
+git clone https://github.com/doguclks/dotfiles.git $HOME\dotfiles
+
+# Mevcut konfigürasyon varsa yedekleyin
+if (Test-Path $env:LOCALAPPDATA\nvim) { Rename-Item $env:LOCALAPPDATA\nvim nvim.backup }
+
+Copy-Item -Recurse $HOME\dotfiles\nvim $env:LOCALAPPDATA\nvim
 ```
+
+> **İsteğe bağlı:** Kopyalamak yerine junction oluşturursanız Neovim doğrudan repodaki `nvim` klasörünü kullanır, `git pull` ile config de güncellenir (yönetici yetkisi gerekmez):
+> ```powershell
+> New-Item -ItemType Junction -Path $env:LOCALAPPDATA\nvim -Target $HOME\dotfiles\nvim
+> ```
 
 ### 3. Başlatın
 
@@ -61,7 +89,7 @@ nvim
 ### 4. (İsteğe Bağlı) WezTerm Konfigürasyonunu Bağlayın
 
 ```powershell
-Copy-Item "$env:LOCALAPPDATA\nvim\wezterm\wezterm.lua" "$HOME\.wezterm.lua"
+Copy-Item "$HOME\dotfiles\wezterm\wezterm.lua" "$HOME\.wezterm.lua"
 ```
 
 ---
@@ -75,9 +103,13 @@ xcode-select --install   # treesitter parser'larını derlemek için C derleyici
 brew install neovim git ripgrep fd tree-sitter-cli lua-language-server
 npm install -g typescript-language-server typescript vscode-langservers-extracted
 
-# Mevcut konfigürasyon varsa yedekleyin, sonra klonlayın
+git clone https://github.com/doguclks/dotfiles.git ~/dotfiles
+
+# Mevcut konfigürasyon varsa yedekleyin, sonra nvim klasörünü kopyalayın
 [ -d ~/.config/nvim ] && mv ~/.config/nvim ~/.config/nvim.backup
-git clone https://github.com/doguclks/dotfiles.git ~/.config/nvim
+mkdir -p ~/.config
+cp -R ~/dotfiles/nvim ~/.config/nvim
+# VEYA git pull ile güncel kalması için: ln -s ~/dotfiles/nvim ~/.config/nvim
 ```
 
 ### (İsteğe Bağlı) WezTerm Konfigürasyonunu Bağlayın
@@ -86,10 +118,10 @@ git clone https://github.com/doguclks/dotfiles.git ~/.config/nvim
 brew install --cask wezterm
 
 # Çapraz platform otomatik algılamalı konfigürasyon:
-cp ~/.config/nvim/wezterm/wezterm.lua ~/.wezterm.lua
+cp ~/dotfiles/wezterm/wezterm.lua ~/.wezterm.lua
 
 # VEYA sadece macOS'a özel bağımsız konfigürasyon:
-# cp ~/.config/nvim/wezterm/wezterm.mac.lua ~/.wezterm.lua
+# cp ~/dotfiles/wezterm/wezterm.mac.lua ~/.wezterm.lua
 ```
 
 ---
