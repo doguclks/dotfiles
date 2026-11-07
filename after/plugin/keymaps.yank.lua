@@ -11,8 +11,7 @@ local function rel_path()
   if abs == "" then
     return nil
   end
-  local rel = vim.fn.fnamemodify(abs, ":.")
-  return (rel:gsub("\\", "/"))
+  return vim.fn.fnamemodify(abs, ":.")
 end
 
 local function to_clipboard(text)
@@ -172,11 +171,6 @@ function M.yank_function()
   end
 
   local bufnr = vim.api.nvim_get_current_buf()
-  local has_parser, parser = pcall(vim.treesitter.get_parser, bufnr)
-  if has_parser and parser then
-    pcall(parser.parse, parser)
-  end
-
   local ok, node = pcall(vim.treesitter.get_node, { bufnr = bufnr })
   if not ok or not node then
     return vim.notify("Treesitter parser bulunamadı", vim.log.levels.WARN)
